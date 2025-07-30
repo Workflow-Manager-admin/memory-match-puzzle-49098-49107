@@ -340,7 +340,7 @@ function App() {
               <Card
                 key={card.id}
                 content={card.content}
-                isFlipped={card.isFlipped || card.isMatched}
+                isFlipped={card.isFlipped}
                 isMatched={card.isMatched}
                 onClick={() => handleCardClick(i)}
                 accent={GAME_COLORS.accent}
@@ -362,8 +362,8 @@ function App() {
  * Emoji (front) is only revealed if isFlipped or isMatched, else shows "?" (back).
  */
 function Card({ content, isFlipped, isMatched, onClick, accent, secondary, disabled }) {
-  // The card is visually flipped if isFlipped OR isMatched is true.
-  const showFront = isFlipped || isMatched;
+  // The card should show the front (emoji) ONLY if it's flipped OR matched
+  const shouldShowFront = isFlipped || isMatched;
 
   return (
     <div
@@ -375,22 +375,22 @@ function Card({ content, isFlipped, isMatched, onClick, accent, secondary, disab
         margin: "auto"
       }}
       tabIndex={disabled ? -1 : 0}
-      aria-label={showFront ? `${content} card` : `unflipped card`}
+      aria-label={shouldShowFront ? `${content} card` : `unflipped card`}
       onClick={disabled ? undefined : onClick}
       onKeyDown={e => (!disabled && (e.key === 'Enter' || e.key === ' ')) && onClick()}
       role="button"
     >
       <div
-        className={`card-flipper${showFront ? " flipped" : ""}${isMatched ? " matched" : ""}`}
+        className={`card-flipper${shouldShowFront ? " flipped" : ""}${isMatched ? " matched" : ""}`}
         style={{
           width: "100%",
           height: "100%",
           position: "relative",
           transition: "transform .52s cubic-bezier(.58,1.6,.24,1)",
           transformStyle: "preserve-3d",
-          transform: showFront ? "rotateY(180deg)" : "rotateY(0deg)"
+          transform: shouldShowFront ? "rotateY(180deg)" : "rotateY(0deg)"
         }}>
-        {/* Front (emoji, only shown if flipped/matched) */}
+        {/* Front face - shows emoji when flipped/matched */}
         <div
           className="card card-front"
           style={{
@@ -413,12 +413,13 @@ function Card({ content, isFlipped, isMatched, onClick, accent, secondary, disab
             color: "#222",
             boxShadow: isMatched
               ? `0 0 9px 1.5px ${accent}99`
-              : `0 1px 6px #0001`
+              : `0 1px 6px #0001`,
+            transform: "rotateY(180deg)" // Front face is rotated 180deg so it shows when container is flipped
           }}
         >
-          {showFront ? content : ""}
+          {shouldShowFront ? content : ""}
         </div>
-        {/* Back (shows "?" by default unless card is flipped/matched) */}
+        {/* Back face - shows question mark by default */}
         <div
           className="card card-back"
           style={{
@@ -436,11 +437,10 @@ function Card({ content, isFlipped, isMatched, onClick, accent, secondary, disab
             fontSize: "2em",
             color: "#fff",
             fontWeight: 700,
-            transform: "rotateY(180deg)",
             boxShadow: "0 2px 10px #007bff15, 0 2px 7px #00000017"
           }}
         >
-          {!showFront ? "?" : ""}
+          {shouldShowFront ? "" : "?"}
         </div>
       </div>
     </div>
