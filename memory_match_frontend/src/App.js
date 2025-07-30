@@ -53,17 +53,62 @@ function App() {
   const [timer, setTimer] = useState(0);
   const [running, setRunning] = useState(false);
   const [gameWon, setGameWon] = useState(false);
+  const [showPreview, setShowPreview] = useState(true); // NEW: controls the initial reveal
   // Light theme only (with room for dark, but default is light)
   const theme = "light"; // Could hook up a toggle if needed
+
+  // --- Preview effect: show all cards for 1.5s ---
+  useEffect(() => {
+    // On mount, or whenever deck is reset, show all for 1.5s then flip to back
+    setShowPreview(true);
+    // Set all cards flipped for preview
+    setDeck(prev => prev.map(card => ({ ...card, isFlipped: true })));
+    setRunning(false); // Don't run timer during preview
+    const timerId = setTimeout(() => {
+      // Hide all (unless matched), after 1.5s, and allow playing
+      setDeck(prev =>
+        prev.map(card =>
+          card.isMatched ? card : { ...card, isFlipped: false }
+        )
+      );
+      setShowPreview(false);
+      setRunning(true);
+    }, 1500);
+    return () => clearTimeout(timerId);
+    // eslint-disable-next-line
+  }, []); // only on first mount
+
+  // When user restart/new game, replay preview
+  function handleRestart() {
+    const newDeck = shuffleAndPair(CARD_EMOJIS);
+    setDeck(newDeck.map(card => ({ ...card, isFlipped: true })));
+    setFlipped([]);
+    setMatchedCount(0);
+    setMoves(0);
+    setTimer(0);
+    setGameWon(false);
+    setShowPreview(true);
+    setRunning(false);
+    // After 1.5s, flip back and start game
+    setTimeout(() => {
+      setDeck(prev =>
+        prev.map(card =>
+          card.isMatched ? card : { ...card, isFlipped: false }
+        )
+      );
+      setShowPreview(false);
+      setRunning(true);
+    }, 1500);
+  }
 
   // --- TIMER ---
   useEffect(() => {
     let interval = null;
-    if (running && !gameWon) {
+    if (running && !gameWon && !showPreview) {
       interval = setInterval(() => setTimer(t => t + 1), 1000);
     }
     return () => clearInterval(interval);
-  }, [running, gameWon]);
+  }, [running, gameWon, showPreview]);
 
   // --- Match logic and card flipping effects ---
   useEffect(() => {
@@ -102,21 +147,9 @@ function App() {
     }
   }, [flipped, deck]);
 
-  // --- Start/reset game ---
-  function handleRestart() {
-    setDeck(shuffleAndPair(CARD_EMOJIS));
-    setFlipped([]);
-    setMatchedCount(0);
-    setMoves(0);
-    setTimer(0);
-    setGameWon(false);
-    setRunning(false);
-    setTimeout(() => setRunning(true), 300); // start timer after render
-  }
-
   // --- Card click handler ---
   function handleCardClick(idx) {
-    if (!running) setRunning(true);
+    if (!running || showPreview) return; // Don't allow clicks during preview or before running
     if (gameWon) return;
     if (flipped.includes(idx)) return;
     if (deck[idx].isMatched || deck[idx].isFlipped) return;
@@ -140,11 +173,6 @@ function App() {
       setRunning(false);
     }
   }, [matchedCount, deck.length]);
-
-  // --- On mount, start game ---
-  useEffect(() => {
-    setRunning(true);
-  }, []);
 
   // --- UI ---
   return (
