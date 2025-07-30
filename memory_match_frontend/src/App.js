@@ -61,15 +61,18 @@ function App() {
   useEffect(() => {
     // On mount or reset, cards are shown for preview for 1.5s, then all hidden (except matched)
     setShowPreview(true);
+    setRunning(false);
 
-    // Step 1: Temporarily show ALL cards - use a separate previewDeck to avoid persisting isFlipped:true
-    // Create a deep copy so the state isn't mutated after this phase
-    setDeck(prev => prev.map(card => ({ ...card, isFlipped: false, isMatched: false }))); // Ensure all are hidden at very first render
+    // Ensure all cards start in the unflipped state
+    setDeck(prev => prev.map(card => ({ ...card, isFlipped: false, isMatched: false })));
 
-    // Step 2: During preview, just display cards as if flipped, but don't persist to deck state
+    // After preview period, hide all cards and start the game
     const previewTimerId = setTimeout(() => {
-      // After preview, ensure all cards (except matched) are hidden in the actual deck state
-      setDeck(prev => prev.map(card => ({ ...card, isFlipped: false }))); // Ensure all visible cards are flipped back down
+      // Explicitly ensure all cards are in the unflipped state after preview
+      setDeck(prev => prev.map(card => ({ 
+        ...card, 
+        isFlipped: false  // Force all cards to be hidden
+      })));
       setShowPreview(false);
       setRunning(true);
     }, 1500);
@@ -81,7 +84,8 @@ function App() {
   // When user restarts/new game, replay preview - ensure isFlipped is cleaned before/after preview
   function handleRestart() {
     const newDeck = shuffleAndPair(CARD_EMOJIS);
-    setDeck(newDeck.map(card => ({ ...card, isFlipped: false, isMatched: false }))); // All cards hidden, none matched
+    
+    // Reset all game state
     setFlipped([]);
     setMatchedCount(0);
     setMoves(0);
@@ -89,9 +93,16 @@ function App() {
     setGameWon(false);
     setShowPreview(true);
     setRunning(false);
+    
+    // Set new deck with all cards in unflipped state
+    setDeck(newDeck.map(card => ({ ...card, isFlipped: false, isMatched: false })));
 
+    // After preview period, ensure all cards are hidden
     setTimeout(() => {
-      setDeck(prev => prev.map(card => ({ ...card, isFlipped: false }))); // flip all to hidden (should be already)
+      setDeck(prev => prev.map(card => ({ 
+        ...card, 
+        isFlipped: false  // Explicitly ensure cards are hidden after preview
+      })));
       setShowPreview(false);
       setRunning(true);
     }, 1500);
@@ -119,7 +130,7 @@ function App() {
           setDeck(prev =>
             prev.map((c, i) =>
               i === idx1 || i === idx2
-                ? { ...c, isMatched: true }
+                ? { ...c, isMatched: true, isFlipped: false } // Mark as matched but not flipped
                 : c
             )
           );
@@ -132,7 +143,7 @@ function App() {
           setDeck(prev =>
             prev.map((c, i) =>
               i === idx1 || i === idx2
-                ? { ...c, isFlipped: false }
+                ? { ...c, isFlipped: false } // Explicitly set to false
                 : c
             )
           );
@@ -364,7 +375,7 @@ function App() {
               <Card
                 key={card.id}
                 content={card.content}
-                isFlipped={showPreview ? true : (card.isFlipped || card.isMatched)}  // <-- force preview only during showPreview
+                isFlipped={showPreview ? true : (card.isFlipped || card.isMatched)}
                 isMatched={card.isMatched}
                 onClick={() => handleCardClick(i)}
                 accent={GAME_COLORS.accent}
