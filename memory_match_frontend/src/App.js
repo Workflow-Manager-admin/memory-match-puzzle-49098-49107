@@ -59,29 +59,29 @@ function App() {
 
   // --- Preview effect: show all cards for 1.5s ---
   useEffect(() => {
-    // On mount, or whenever deck is reset, show all for 1.5s then flip to back
+    // On mount or reset, cards are shown for preview for 1.5s, then all hidden (except matched)
     setShowPreview(true);
-    // Set all cards flipped for preview
-    setDeck(prev => prev.map(card => ({ ...card, isFlipped: true })));
-    setRunning(false); // Don't run timer during preview
-    const timerId = setTimeout(() => {
-      // Hide all (unless matched), after 1.5s, and allow playing
-      setDeck(prev =>
-        prev.map(card =>
-          card.isMatched ? card : { ...card, isFlipped: false }
-        )
-      );
+
+    // Step 1: Temporarily show ALL cards - use a separate previewDeck to avoid persisting isFlipped:true
+    // Create a deep copy so the state isn't mutated after this phase
+    setDeck(prev => prev.map(card => ({ ...card, isFlipped: false, isMatched: false }))); // Ensure all are hidden at very first render
+
+    // Step 2: During preview, just display cards as if flipped, but don't persist to deck state
+    const previewTimerId = setTimeout(() => {
+      // After preview, ensure all cards (except matched) are hidden in the actual deck state
+      setDeck(prev => prev.map(card => ({ ...card, isFlipped: false }))); // Ensure all visible cards are flipped back down
       setShowPreview(false);
       setRunning(true);
     }, 1500);
-    return () => clearTimeout(timerId);
-    // eslint-disable-next-line
-  }, []); // only on first mount
 
-  // When user restart/new game, replay preview
+    return () => clearTimeout(previewTimerId);
+    // eslint-disable-next-line
+  }, []);
+
+  // When user restarts/new game, replay preview - ensure isFlipped is cleaned before/after preview
   function handleRestart() {
     const newDeck = shuffleAndPair(CARD_EMOJIS);
-    setDeck(newDeck.map(card => ({ ...card, isFlipped: true })));
+    setDeck(newDeck.map(card => ({ ...card, isFlipped: false, isMatched: false }))); // All cards hidden, none matched
     setFlipped([]);
     setMatchedCount(0);
     setMoves(0);
@@ -89,13 +89,9 @@ function App() {
     setGameWon(false);
     setShowPreview(true);
     setRunning(false);
-    // After 1.5s, flip back and start game
+
     setTimeout(() => {
-      setDeck(prev =>
-        prev.map(card =>
-          card.isMatched ? card : { ...card, isFlipped: false }
-        )
-      );
+      setDeck(prev => prev.map(card => ({ ...card, isFlipped: false }))); // flip all to hidden (should be already)
       setShowPreview(false);
       setRunning(true);
     }, 1500);
@@ -368,12 +364,12 @@ function App() {
               <Card
                 key={card.id}
                 content={card.content}
-                isFlipped={card.isFlipped || card.isMatched}
+                isFlipped={showPreview ? true : (card.isFlipped || card.isMatched)}  // <-- force preview only during showPreview
                 isMatched={card.isMatched}
                 onClick={() => handleCardClick(i)}
                 accent={GAME_COLORS.accent}
                 secondary={GAME_COLORS.secondary}
-                disabled={flipped.length === 2 || card.isFlipped || card.isMatched || gameWon}
+                disabled={flipped.length === 2 || card.isFlipped || card.isMatched || gameWon || showPreview}
               />
             ))}
           </div>
